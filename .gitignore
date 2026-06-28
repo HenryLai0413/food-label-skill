@@ -1,5 +1,6 @@
 # 原始資料庫（體積大，已處理成 tfnd_2025.csv）
 references/tfnd_raw.xlsx
+references/食品營養成分資料庫*.xlsx
 
 # Python 快取
 __pycache__/
