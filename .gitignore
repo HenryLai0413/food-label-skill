@@ -1,0 +1,10 @@
+# 原始資料庫（體積大，已處理成 tfnd_2025.csv）
+references/tfnd_raw.xlsx
+
+# Python 快取
+__pycache__/
+*.pyc
+*.pyo
+
+# 暫存輸出
+*.docx
