@@ -2,6 +2,9 @@
 references/tfnd_raw.xlsx
 references/食品營養成分資料庫*.xlsx
 
+# 大型 PDF（法規文件，本地保留即可）
+references/包裝標示規範.pdf
+
 # Python 快取
 __pycache__/
 *.pyc
