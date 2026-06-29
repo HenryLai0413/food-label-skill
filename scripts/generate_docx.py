@@ -304,13 +304,15 @@ def generate_label_docx(data: dict, output_path: str):
     print(f"字型：{FONT_NAME}  |  淨重容許負誤差：{calculate_tolerance(nominal_g) if nominal_g > 0 else 'N/A'}")
 
 
+DEFAULT_OUTPUT_DIR = r"C:\Users\hchen\Desktop\SynologyDrive\03【存】產品 (照片, 條碼, 檢驗報告, 目錄)"
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("用法：python generate_docx.py <input.json> [output_dir_or_.docx_path]")
         sys.exit(1)
 
     input_arg = sys.argv[1]
-    output_arg = sys.argv[2] if len(sys.argv) >= 3 else ""
+    output_arg = sys.argv[2] if len(sys.argv) >= 3 else DEFAULT_OUTPUT_DIR
 
     if os.path.exists(input_arg):
         with open(input_arg, "r", encoding="utf-8") as f:

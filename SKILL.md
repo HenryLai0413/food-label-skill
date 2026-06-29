@@ -274,11 +274,18 @@ C:\Users\hchen\.claude\skills\food-label\references\ingredients
 - 品名取純品名（不含素食括號）
 - 日期取產出當天日期
 
-呼叫方式（輸出到指定資料夾，腳本自動產生檔名）：
+呼叫方式（腳本自動產生檔名）：
 ```bash
-python scripts/generate_docx.py input.json "輸出資料夾路徑"
+python scripts/generate_docx.py input.json
 ```
-若省略輸出路徑，檔案產出於當前工作目錄。
+**預設輸出路徑**：
+```
+C:\Users\hchen\Desktop\SynologyDrive\03【存】產品 (照片, 條碼, 檢驗報告, 目錄)
+```
+若需輸出到其他位置，可指定第二個參數覆蓋：
+```bash
+python scripts/generate_docx.py input.json "其他資料夾路徑"
+```
 
 ---
 
