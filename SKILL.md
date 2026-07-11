@@ -1,5 +1,5 @@
 ---
-name: food-label
+name: 產品標示
 description: |
   自動生成台灣合規食品標示，輸出為 Word 文件（.docx）。
   當使用者提供產品名稱、配方（原料 + 用量）、淨重、保存條件等資訊，
