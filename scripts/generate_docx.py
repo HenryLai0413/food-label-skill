@@ -87,24 +87,27 @@ def set_doc_default_font(doc, font_name=FONT_NAME):
 # ── 淨重容許負誤差（依《定量包裝商品管理辦法》附表） ─────────────────────────
 
 def calculate_tolerance(nominal_g: float) -> str:
+    # 依《定量包裝商品管理辦法》附表計算容許負誤差，一律以百分比顯示（不寫公克）
     if nominal_g <= 0:
         return ""
     if nominal_g <= 50:
-        return f"±{nominal_g * 0.09:.1f}公克（9%）"
+        pct = 9.0
     elif nominal_g <= 100:
-        return "±4.5公克"
+        pct = 4.5 * 100 / nominal_g   # 附表定 4.5 公克
     elif nominal_g <= 200:
-        return f"±{nominal_g * 0.045:.1f}公克（4.5%）"
+        pct = 4.5
     elif nominal_g <= 300:
-        return "±9公克"
+        pct = 9 * 100 / nominal_g     # 附表定 9 公克
     elif nominal_g <= 500:
-        return f"±{nominal_g * 0.03:.1f}公克（3%）"
+        pct = 3.0
     elif nominal_g <= 1000:
-        return "±15公克"
+        pct = 15 * 100 / nominal_g    # 附表定 15 公克
     elif nominal_g <= 10000:
-        return f"±{nominal_g * 0.015:.0f}公克（1.5%）"
+        pct = 1.5
     else:
-        return "±150公克"
+        pct = 150 * 100 / nominal_g   # 附表定 150 公克
+    s = f"{pct:.1f}".rstrip("0").rstrip(".")
+    return f"±{s}%"
 
 
 def format_net_weight(nominal_g: float, solid_g: float = None) -> str:
@@ -225,7 +228,11 @@ def generate_label_docx(data: dict, output_path: str):
         ("工廠登記號碼",      data.get("factory_reg", "")),
     ]
 
+    # 電話/地址/工廠登記號碼 為選填：空值時略過該列（如 OEM 只寫負責廠商名）
+    skip_if_empty = {"電話", "地址", "工廠登記號碼"}
     for label, value in fields:
+        if label in skip_if_empty and not str(value).strip():
+            continue
         add_label_row(table, label, value)
 
     for row in table.rows:
@@ -234,30 +241,39 @@ def generate_label_docx(data: dict, output_path: str):
 
     doc.add_paragraph()
 
-    # 營養標示
-    nh_para = doc.add_paragraph()
-    nh_run = nh_para.add_run("營養標示")
-    set_run_font(nh_run, size_pt=11, bold=True)
+    # ── 營養標示（官方框格式：外框＋橫線分隔、無直線、無列間線、標題與份量在框內） ──
+    def _set_tbl_borders(table):
+        tblPr = table._tbl.tblPr
+        old = tblPr.find(qn('w:tblBorders'))
+        if old is not None:
+            tblPr.remove(old)
+        b = OxmlElement('w:tblBorders')
+        for edge in ('top', 'bottom', 'left', 'right'):
+            e = OxmlElement('w:' + edge)
+            e.set(qn('w:val'), 'single'); e.set(qn('w:sz'), '8')
+            e.set(qn('w:space'), '0'); e.set(qn('w:color'), '000000')
+            b.append(e)
+        for edge in ('insideH', 'insideV'):
+            e = OxmlElement('w:' + edge)
+            e.set(qn('w:val'), 'nil')
+            b.append(e)
+        tblPr.append(b)
+
+    def _cell_bottom(cell, sz='6'):
+        tcPr = cell._tc.get_or_add_tcPr()
+        old = tcPr.find(qn('w:tcBorders'))
+        if old is not None:
+            tcPr.remove(old)
+        tb = OxmlElement('w:tcBorders')
+        e = OxmlElement('w:bottom')
+        e.set(qn('w:val'), 'single'); e.set(qn('w:sz'), sz)
+        e.set(qn('w:space'), '0'); e.set(qn('w:color'), '000000')
+        tb.append(e)
+        tcPr.append(tb)
 
     nutrition = data.get("nutrition", {})
     serving_size = data.get("serving_size", "")
     servings_per_pkg = data.get("servings_per_package", "")
-
-    si_para = doc.add_paragraph()
-    si_run = si_para.add_run(f"每份量：{serving_size}　　本包裝含：{servings_per_pkg}份")
-    set_run_font(si_run, size_pt=10)
-
-    nt = doc.add_table(rows=1, cols=3)
-    nt.style = "Table Grid"
-    nt.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-    for i, h in enumerate(["項目", "每份", "每100公克"]):
-        cell = nt.rows[0].cells[i]
-        cell.text = ""
-        hr = cell.paragraphs[0].add_run(h)
-        set_run_font(hr, size_pt=10, bold=True)
-        set_cell_bg(cell, "D9D9D9")
-
     n = nutrition
     nut_rows = [
         ("熱量",       n.get("calories_per_serving", ""),      n.get("calories_per_100g", ""),      "大卡"),
@@ -270,15 +286,56 @@ def generate_label_docx(data: dict, output_path: str):
         ("鈉",         n.get("sodium_per_serving", ""),        n.get("sodium_per_100g", ""),        "毫克"),
     ]
 
-    for item_name, per_serving, per_100g, unit in nut_rows:
-        row = nt.add_row()
-        for cell, txt in zip(row.cells, [
-            item_name,
-            f"{per_serving} {unit}" if per_serving else "",
-            f"{per_100g} {unit}" if per_100g else "",
-        ]):
-            cell.text = ""
-            r = cell.paragraphs[0].add_run(txt)
+    def _fmt(v, unit):
+        # 無數值一律填 0（法規：沒有數值就填 0）；0 亦如實顯示
+        if v == "" or v is None:
+            v = 0
+        return f"{v} {unit}"
+
+    total_rows = 3 + len(nut_rows)   # 標題 + 份量 + 表頭 + 8 營養素
+    nt = doc.add_table(rows=total_rows, cols=3)
+    nt.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _set_tbl_borders(nt)
+    col_w = [Inches(2.3), Inches(1.75), Inches(1.9)]
+
+    # 第0列：標題「營養標示」（合併、置中）
+    r0 = nt.rows[0]
+    c0 = r0.cells[0].merge(r0.cells[1]).merge(r0.cells[2])
+    p0 = c0.paragraphs[0]; p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run0 = p0.add_run("營養標示")
+    set_run_font(run0, size_pt=11, bold=True)
+    _cell_bottom(c0)
+
+    # 第1列：每一份量／本包裝含（合併、靠左、兩行）
+    r1 = nt.rows[1]
+    c1 = r1.cells[0].merge(r1.cells[1]).merge(r1.cells[2])
+    p1 = c1.paragraphs[0]; p1.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    sr1 = p1.add_run(f"每一份量　{serving_size}")
+    set_run_font(sr1, size_pt=10)
+    sr1.add_break()
+    sr2 = p1.add_run(f"本包裝含　{servings_per_pkg}份")
+    set_run_font(sr2, size_pt=10)
+    _cell_bottom(c1)
+
+    # 第2列：表頭（項目欄空白，每份／每100公克 靠右）
+    r2 = nt.rows[2]
+    for i, h in enumerate(["", "每份", "每100公克"]):
+        r2.cells[i].width = col_w[i]
+        hp = r2.cells[i].paragraphs[0]
+        hp.alignment = WD_ALIGN_PARAGRAPH.LEFT if i == 0 else WD_ALIGN_PARAGRAPH.RIGHT
+        hr = hp.add_run(h)
+        set_run_font(hr, size_pt=10, bold=True)
+        _cell_bottom(r2.cells[i])
+
+    # 營養素列（項目靠左、數值與單位靠右對齊）
+    for ridx, (item_name, per_serving, per_100g, unit) in enumerate(nut_rows, start=3):
+        row = nt.rows[ridx]
+        vals = [item_name, _fmt(per_serving, unit), _fmt(per_100g, unit)]
+        for idx, (cell, txt) in enumerate(zip(row.cells, vals)):
+            cell.width = col_w[idx]
+            para = cell.paragraphs[0]
+            para.alignment = WD_ALIGN_PARAGRAPH.LEFT if idx == 0 else WD_ALIGN_PARAGRAPH.RIGHT
+            r = para.add_run(txt)
             set_run_font(r, size_pt=10)
 
     # 備註
