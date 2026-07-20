@@ -361,7 +361,9 @@ def generate_label_docx(data: dict, output_path: str):
     print(f"字型：{FONT_NAME}  |  淨重容許負誤差：{calculate_tolerance(nominal_g) if nominal_g > 0 else 'N/A'}")
 
 
-DEFAULT_OUTPUT_DIR = r"C:\Users\hchen\Desktop\SynologyDrive\03【存】產品 (照片, 條碼, 檢驗報告, 目錄)"
+# 預設輸出資料夾：優先取環境變數 FOOD_LABEL_OUTPUT_DIR，未設定則輸出到當前目錄。
+# （不寫死本機路徑，避免個人環境資訊進入公開版控）
+DEFAULT_OUTPUT_DIR = os.environ.get("FOOD_LABEL_OUTPUT_DIR") or os.getcwd()
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

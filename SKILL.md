@@ -80,7 +80,7 @@ description: |
 ### 系統自動處理的事項
 
 - 成分依含量由多到少排序
-- 商用原料展開子成分（查 `G:\我的雲端硬碟\立康-產品&原物料成本\原料成分&營養標` 圖庫）
+- 商用原料展開子成分（查本機原料規格圖庫，見「商用原料查詢」章節）
 - 過敏原自動偵測並產出警語
 - 素食類型判定（並標註在品名後）
 - 廠商資訊自動帶入（煨小寶 / 津沅寶 / 呷8味）
@@ -149,9 +149,10 @@ description: |
 
 對每個商用原料，**依序**查詢以下兩個路徑：
 
-**路徑一（優先）：立康原料規格圖庫**
+**路徑一（優先）：本機原料規格圖庫**
 ```
-G:\我的雲端硬碟\立康-產品&原物料成本\原料成分&營養標
+環境變數 INGREDIENT_LIBRARY_DIR 指定的資料夾
+（未設定時，向使用者詢問圖庫位置；企業內部使用者請參照自身環境設定文件）
 ```
 - 用 `Glob` 搜尋品名關鍵字（如：`*金蘭*醬油*`、`*雞粉*`）
 - 圖庫內容為 JPG / PNG / AVIF / webp 格式的原料包裝照片
@@ -163,14 +164,14 @@ G:\我的雲端硬碟\立康-產品&原物料成本\原料成分&營養標
 
 **路徑二（備用）：結構化 Markdown 規格書**
 ```
-C:\Users\hchen\.claude\skills\food-label\references\ingredients
+本 skill 內的 references/ingredients/
 ```
 - 適用於已手動建檔的原料（格式參見 `references/ingredients/README.md`）
 - **找到 .md 檔** → 讀取「子成分」與「每100公克營養成分」
 
 **兩個路徑都找不到時：**
 - 改用 TFND 查詢（`python scripts/lookup_nutrition.py <原料名稱>`）估算
-- 告知使用者：「{原料名稱} 規格書尚未建檔，已依 TFND 資料庫估算，建議後續將規格圖片存入 G:\我的雲端硬碟\立康-產品&原物料成本\原料成分&營養標 以提升準確度」
+- 告知使用者：「{原料名稱} 規格書尚未建檔，已依 TFND 資料庫估算，建議後續將規格圖片存入原料規格圖庫以提升準確度」
 
 > **搜尋技巧**：品名可用部分關鍵字比對，例如搜尋「醬油」可找到「金蘭珍味醬油」；搜尋「椰漿」可找到「佳樂Kara 椰漿」。
 
@@ -289,9 +290,10 @@ C:\Users\hchen\.claude\skills\food-label\references\ingredients
 ```bash
 python scripts/generate_docx.py input.json
 ```
-**預設輸出路徑**：
-```
-C:\Users\hchen\Desktop\SynologyDrive\03【存】產品 (照片, 條碼, 檢驗報告, 目錄)
+**預設輸出路徑**：由環境變數 `FOOD_LABEL_OUTPUT_DIR` 指定；未設定時輸出到當前目錄。
+```bash
+# 一次性設定（Windows PowerShell，寫入使用者環境變數）
+setx FOOD_LABEL_OUTPUT_DIR "你的產品文件資料夾路徑"
 ```
 若需輸出到其他位置，可指定第二個參數覆蓋：
 ```bash
